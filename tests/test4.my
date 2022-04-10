@@ -1,0 +1,26 @@
+(array f 9)
+(define mysize () 9)
+
+(define write_array_r(i size) 
+   (if (= i (- size 1)) 
+          (write f[i])
+          (seq (write f[i])(write_array_r (+ i 1) size))
+   )
+)
+(define write_array (size) 
+  (write_array_r 0 size)
+) 
+
+(define read_array_r(i size)
+   (if (= i (- size 1))   (set f[i] (read))
+       (seq (set f[i] (read)) (read_array_r (+ i 1) size))
+   )
+)
+
+(define read_array (size) 
+   (read_array_r 0 size)
+)
+
+(define main() 
+  (seq (read_array  (mysize)) (write_array  (mysize)))
+)

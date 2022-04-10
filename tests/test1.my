@@ -1,0 +1,11 @@
+( define gcd (a b)
+	(if (= a b)
+	a
+		(if (> a b)
+		(gcd (- a b) b)
+		(gcd a (- b a)))
+        ))
+
+(define main () 
+	(write (gcd 40 10))
+)

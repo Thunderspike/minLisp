@@ -1,0 +1,15 @@
+( define incr (x) (+ x 1) ) 
+
+(define add(x y )
+(if (= y 0) 
+     x 
+     (incr 
+(add x (- y 1))) ))
+
+(define main ()
+        (let ( (x ( read ) ) 
+               (y ( read ) )
+             ) 
+         (add x y)
+         )
+)
