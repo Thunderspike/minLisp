@@ -2,45 +2,41 @@
 #define STR_SIZE 255
 #define HASHMAPCAPACITY 30
 
-#define ID = 1
-#define NUM = 2
-#define _OP_ 3
-#define _KEYWORD 4
+// #define ID 1
+// #define NUM 2
 
-typedef enum symbols { 
-    RPARAM = 0, 
-    LPARAM = 1,
-    PLUS = 2, 
-    MINUS = 3, 
-    MULT = 4, 
-    DIV = 5, 
-    LT = 6, 
-    LTE = 7, 
-    NEQ = 8, 
-    GT = 9, 
-    GTE = 10, 
-    EQ = 11, 
-    LBRACK = 12, 
-    RBRACK = 13, 
-    AMPER = 14, 
-    PIPE = 15, 
-    EXCL = 16  
-} op;
+// #define RPARAM 0
+// #define LPARAM 1
+// #define PLUS 2
+// #define MINUS 3
+// #define MULT 4
+// #define DIV 5
+// #define LT 6
+// #define LTE 7
+// #define GTE 8
+// #define NEQ 9
+// #define GT 10
+// #define GTE 11
+// #define EQ 12
+// #define LBRACK 13
+// #define RBRACK 14
+// #define AMPER 15
+// #define PIPE 16
+// #define EXCL 17  
 
-typedef enum keywords {
-    array = 101,
-    seq = 102,
-    define = 103,
-    if = 104,
-    while = 105,
-    write = 106,
-    writeln = 107,
-    read = 108,
-    and = 109,
-    or = 110,
-    not = 111,
-    set = 112,
-    let = 113,
-    true = 114,
-    false = 115
-} types;
+// #define _array 101
+// #define _seq 102
+// #define _define 103
+// #define _if 104
+// #define _while 105
+// #define _write 106
+// #define _writeln 107
+// #define _read 108
+// #define _and 109
+// #define _or 110
+// #define _not 111
+// #define _set 112
+// #define _let 113
+// #define _true 114
+// _false = 115
+

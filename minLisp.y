@@ -1,5 +1,4 @@
 %{
-    
     #define _INT_TYPE 1
     #define _CHAR_TYPE 2
     #define _BOOL_TYPE 3
@@ -27,7 +26,7 @@
     } Scope;
 
     typedef struct Symbol {
-        int keyword;
+        char* keyword;
         char* type;
         char* lexeme;
     } Symbol;
@@ -47,76 +46,183 @@
 %locations
 
 %union {
+    char* keyword;
     char* nameVal;
     int intVal;
 }
 
-%token LBRACKET RBRACKET TYPE_ ID ENDSTMT
+%token _array _seq _define _if _while _write _writeln _read 
+%token _and _or _not _set _let _true _false
+%token LTE NEQ GTE
+%token ID NUM 
+
 %type<nameVal> ID 
 %type<intVal> NUM
 
 %%  
-ML          :   arrays program  {}
+ML          :   arrays program  {
+    printf("\n ML - arrays program ");
+    printf("\n");
+}
             ;
-arrays      :   arrays array    {}
+arrays      :   %empty {
+    printf("\n arrays - __empty__ ");
+}           
+            |  arrays array {
+    printf("\n arrays - arrays array ");
+}
             ;
-array       :   '(' 'array' ID NUM ')'    {}
+array       :   '(' _array ID NUM ')'    {
+    printf("\n array - '(' 'array' %s %d ')'", $3, $4);
+}
             ;
-program		:   program function    {}
-            |   function    {}
+program		:   program function    {
+    printf("\n program - program function");
+}
+            |   function    {
+    printf("\n program - function");
+}
             ;
-function    :   '(' 'define' ID param_list expr ')' 
+function    :   '(' _define ID param_list expr ')' {
+    printf("\n function - '(' 'define' %s param_list expr ')'", $3);
+}
             ;
-param_list	:   '(' ')'
-            |   '(' id_list ')'
+param_list	:   '(' ')' {
+    printf("\n param_list - '(' ')'");
+}
+            |   '(' id_list ')' {
+    printf("\n param_list - '(' id_list ')'");
+}
             ;
-id_list		:   id_list ID
-            |   ID
+id_list		:   id_list ID {
+    printf("\n id_list - id_list %s", $2);
+}
+            |   ID {
+    printf("\n id_list - %s", $1);                
+}
             ;
-expr		:   NUM
-            |   ID
-            |   ID  '[' expr ']'
-            |   'true'
-            |   'false'
-            |   '(' 'if' expr expr expr ')'
-            |   '(' 'while' expr expr ')'
-            |   '(' ID actual_list ')'
-            |   '(' 'write' expr ')'
-            |   '(' 'writeln' expr ')'
-            |   '(' 'read' ')'
-            |   '(' 'let' '(' assign_list ')' expr ')'
-            |   '(' 'set' ID expr ')'
-            |   '(' 'set' ID '[' expr ']' expr ')'
-            |   '(' '+' expr expr ')'
-            |   '(' '-' expr expr ')'
-            |   '(' '*' expr expr ')'
-            |   '(' '/' expr expr ')'
-            |   '(' '<' expr expr ')'
-            |   '(' '<=' expr expr ')'
-            |   '(' '=' expr expr ')'
-            |   '(' '-' expr ')'
-            |   '(' 'and' expr expr ')'
-            |   '(' '&' expr expr ')'
-            |   '(' 'or' expr expr ')'
-            |   '(' '|' expr expr ')'
-            |   '(' 'not' expr expr ')'
-            |   '(' '!' expr expr ')'
-            |   '(' 'seq' expr_list ')'
+
+expr		:   NUM {
+    printf("\n expr - %d", $1);    
+}
+            |   ID {
+    printf("\n expr - %s", $1);    
+}
+            |   ID  '[' expr ']' {
+    printf("\n expr - %s '[' expr ']'", $1);    
+}
+            |   _true {
+    printf("\n expr - 'true'");    
+}
+            |   _false {
+    printf("\n expr - 'false'");
+}
+            |   '(' _if expr expr expr ')' {
+    printf("\n expr - '(' 'if' expr expr expr ')");    
+}
+            |   '(' _while expr expr ')' {
+    printf("\n expr - '(' 'while' expr expr ')"); 
+}
+            |   '(' ID actual_list ')' {
+    printf("\n expr - '(' %s actual_list ')'", $2);    
+}
+            |   '(' _write expr ')' {
+    printf("\n expr - '(' 'write' expr ')'");    
+}
+            |   '(' _writeln expr ')' {
+    printf("\n expr - '(' 'writeln' expr ')'");    
+}
+            |   '(' _read ')' {
+    printf("\n expr - '(' 'read' ')'");    
+}
+            |   '(' _let '(' assign_list ')' expr ')' {
+    printf("\n expr - '(' 'let' '(' assign_list ')' expr ')'");    
+}
+            |   '(' _set ID expr ')' {
+    printf("\n expr - '(' 'set' %s expr ')'", $3);    
+}
+            |   '(' _set ID '[' expr ']' expr ')' {
+    printf("\n expr - '(' 'set' %s '[' expr ']' expr ')'", $3);    
+}
+            |   '(' '+' expr expr ')' {
+    printf("\n expr - '(' '+' expr expr ')'");    
+}
+            |   '(' '-' expr expr ')' {
+    printf("\n expr - '(' '-' expr expr ')'");    
+}
+            |   '(' '*' expr expr ')' {
+    printf("\n expr - '(' '*' expr expr ')'");    
+}
+            |   '(' '/' expr expr ')' {
+    printf("\n expr - '(' '/' expr expr ')'");    
+}
+            |   '(' '<' expr expr ')' {
+    printf("\n expr - '(' '<' expr expr ')'");    
+}           |   '(' '>' expr expr ')' {
+    printf("\n expr - '(' '>' expr expr ')'");    
+}
+            |   '(' LTE expr expr ')' {
+    printf("\n expr - '(' '<=' expr expr ')'");    
+}
+            |   '(' GTE expr expr ')' {
+    printf("\n expr - '(' '>=' expr expr ')'");    
+}
+            |   '(' '=' expr expr ')' {
+    printf("\n expr - '(' '=' expr expr ')'");    
+}
+            |   '(' NEQ expr ')' {
+    printf("\n expr - '(' '<>' expr ')'");    
+}
+            |   '(' '-' expr ')' {
+    printf("\n expr - '(' '-' expr ')'");    
+}
+            |   '(' _and expr expr ')' {
+    printf("\n expr - '(' 'and' expr expr ')'");    
+}
+            |   '(' '&' expr expr ')' {
+    printf("\n expr - '(' '&' expr expr ')'");    
+}
+            |   '(' _or expr expr ')' {
+    printf("\n expr - '(' 'or' expr expr ')'");    
+}
+            |   '(' '|' expr expr ')' {
+    printf("\n expr - '(' '|' expr expr ')'");    
+}
+            |   '(' _not expr expr ')' {
+    printf("\n expr - '(' 'not' expr expr ')'");    
+}
+            |   '(' '!' expr expr ')' {
+    printf("\n expr - '(' '!' expr expr ')'");    
+}
+            |   '(' _seq expr_list ')' {
+    printf("\n expr - '(' 'seq' expr_list ')'");    
+}
             ;
-actual_list	:   actual_list expr
-            |   %empty
+actual_list	:   %empty {
+    printf("\n actual_list - __empty__");
+}
+            |   actual_list expr {
+    printf("\n actual_list - actual_list expr");
+}
             ;
-assign_list	:   assign_list '(' ID expr ')'
+assign_list	:   assign_list '(' ID expr ')' {
+    printf("\n assign_list - assign_list '(' %s expr ')'", $3);
+}
+            |   '(' ID expr ')' {
+    printf("\n assign_list -  '(' %s expr ')'", $2);
+}
             ;
-            |   '(' ID expr ')'
-expr_list   :   expr_list expr
-            ;
-            |   expr
+expr_list   :   expr_list expr {
+    printf("\n expr_list -  expr_list expr ");
+}
+            |   expr {
+    printf("\n expr_list - expr ");
+}
             ;
 %%
 
 int yyerror(char* s) {
-	// printf("\n\t--- %s - { line: %d, col: %d }\n", s, yylloc.first_line, yylloc.first_column );
+	printf("\n\t--- %s - { line: %d }\n", s, yylloc.first_line );
 	return 0;
 }
 

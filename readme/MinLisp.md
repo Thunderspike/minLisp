@@ -19,3 +19,52 @@ operator)
     comments (as well as other white space such as tabs, spaces and newlines) should 
     be discarded. You should be matching the newlines to keep track of what line is 
     currently being processed.
+
+
+```minLisp
+ 
+ML		    :=	arrays program
+arrays		:=	arrays array
+            |   ε
+array		:=	( array id num )
+program		:=	program function
+		    |	function 
+function	:=	( define id param_list expr ) 
+param_list	:=	( )
+			|	( id_list ) 
+id_list		:=	id_list id
+		    |	id	 
+expr		:=	num
+            |	id 
+            |	id [ expr ] 
+            |	true
+            |	false
+            |	( if expr expr expr )
+            |	( while expr expr )
+            |	( id actual_list )
+            |	( write expr )  
+            |	( writeln expr )  
+            |	( read )
+            |	( let (assign_list ) expr )
+            |	( set id expr ) 
+            |	( set id [ expr ] expr ) 
+            |	( + expr expr )
+            |	( - expr expr)
+            |	( * expr expr )
+            |	( / expr expr)
+            |	( < expr expr )
+            |	( <= expr expr)
+            |	( = expr expr )
+            |	( <> expr expr)
+            |	( - expr )   
+            |	( and  expr expr)  	|	( &  expr expr)
+            |	( or  expr expr )	|	( |  expr expr )
+            |	( not expr ) 		|	( ! expr )  
+            |   ( seq expr_list )
+actual_list	:=	actual_list expr
+		    |	ε
+assign_list	:=	assign_list ( id expr )
+		    |	( id expr ) 
+expr_list   :=  expr_list expr
+		    |	expr
+```

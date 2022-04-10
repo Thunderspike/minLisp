@@ -6,8 +6,8 @@
 )
 
 (define main()
-     ( let ( (x 1) (limit 10))
-	(while (< x limit)      # using recursion would be better       
+    ( let ( (x 1) (limit 10) )
+	( while (< x limit)      # using recursion would be better       
 		(seq (write (factorial x))(set x (+ x 1)))
         )
    )
