@@ -7,6 +7,7 @@
 
 id      [a-zA-Z][a-zA-Z0-9_]*
 num     [0-9]+
+comment #.*\n
 
 %%
 [(]         { return('('); }
@@ -15,12 +16,11 @@ num     [0-9]+
 [-]         { return('-'); }
 [*]         { return('*'); }
 [/]         { return('/'); }
-[<]         { return('<'); }
-[<]         { return('>'); }
-"<="        { return(LTE); }
-"<>"        { return(NEQ); }
+"<"         { return('<'); }
 ">"         { return('>'); }
+"<="        { return(LTE); }
 ">="        { return(GTE); }
+"<>"        { return(NEQ); }
 "="         { return('='); }
 [[]         { return('['); }
 []]         { return(']'); }
@@ -53,10 +53,12 @@ num     [0-9]+
 {num}       { yylval.intVal = atoi(yytext); return(NUM); }
 [\t]	    { yylloc.first_column+=5; }
 [ ]         { yylloc.first_column++; }
+{comment}   { 
+                yylloc.first_line++; 
+                yylloc.first_column = 0;
+            }
 [\n]        { 
                 yylloc.first_line++; 
                 yylloc.first_column = 0;
             }
-.           ;
-
 %%

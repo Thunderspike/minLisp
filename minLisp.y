@@ -1,7 +1,4 @@
 %{
-    #define _INT_TYPE 1
-    #define _CHAR_TYPE 2
-    #define _BOOL_TYPE 3
 
     #include "minLisp.tab.h"
     #include "minLisp.h"
@@ -15,31 +12,6 @@
     int yyerror(char *s);
     extern int yylineno;
 
-    // Symbol table utilities
-    typedef struct Scope {
-        int count;
-        int capacity;
-        struct hsearch_data *hashmap_p;
-        char** ids_p;
-        struct Scope* enclosingScope_p;
-        int isTopScope;
-    } Scope;
-
-    typedef struct Symbol {
-        char* keyword;
-        char* type;
-        char* lexeme;
-    } Symbol;
-
-    void createScope(); 
-    Scope* _newScope();
-
-    Symbol* createSymbol(char type[255], char lexeme[255]);
-
-    void add(Scope*, Symbol*);
-    Symbol* get(Scope* scope_p, char id[255]);
-    void printScopeSymbols(Scope*);
-
     Scope* currScope_p = NULL;
 %}
 
@@ -49,6 +21,7 @@
     char* keyword;
     char* nameVal;
     int intVal;
+    struct Symbol* symbolPointerType;
 }
 
 %token _array _seq _define _if _while _write _writeln _read 
@@ -58,6 +31,7 @@
 
 %type<nameVal> ID 
 %type<intVal> NUM
+%type<symbolPointerType> expr
 
 %%  
 ML          :   arrays program  {
@@ -103,7 +77,11 @@ id_list		:   id_list ID {
             ;
 
 expr		:   NUM {
-    printf("\n expr - %d", $1);    
+    printf("\n expr - %d", $1);
+    Symbol* sym_p = malloc(sizeof(Symbol));
+    sym_p->type = _INT;
+    sym_p->val = $1;
+    $$ = sym_p;
 }
             |   ID {
     printf("\n expr - %s", $1);    
@@ -139,7 +117,10 @@ expr		:   NUM {
     printf("\n expr - '(' 'let' '(' assign_list ')' expr ')'");    
 }
             |   '(' _set ID expr ')' {
+    Symbol* getter = malloc(sizeof(Symbol));
+    getter = $4;
     printf("\n expr - '(' 'set' %s expr ')'", $3);    
+    printf("\n expr's value: %d", getter->val);
 }
             |   '(' _set ID '[' expr ']' expr ')' {
     printf("\n expr - '(' 'set' %s '[' expr ']' expr ')'", $3);    
@@ -226,12 +207,12 @@ int yyerror(char* s) {
 	return 0;
 }
 
-Symbol* createSymbol(char type[255], char lexeme[255]) {
-    Symbol* nSymbol_p = (Symbol *) malloc(sizeof(Symbol));
-    nSymbol_p->type = (char *) malloc(sizeof(STR_SIZE));
-    strcpy(nSymbol_p->type, type);
+Symbol* createSymbol(char lexeme[255], int type, int val) {
+    Symbol* nSymbol_p =  malloc(sizeof(Symbol));
     nSymbol_p->lexeme = (char *) malloc(sizeof(STR_SIZE));
     strcpy(nSymbol_p->lexeme, lexeme);
+    nSymbol_p->type = type;
+    nSymbol_p->val = val;
 
     return nSymbol_p;
 }
@@ -359,9 +340,9 @@ void printScopeSymbols(Scope* scope_p) {
             }
 
             printf(
-                "{ %s: %s }, ",
-                ((Symbol *) (entry_p->data))->type,
-                ((Symbol *) (entry_p->data))->lexeme
+                "{ %s: %d }, ",
+                ((Symbol *) (entry_p->data))->lexeme,
+                ((Symbol *) (entry_p->data))->type
             );
         }
         printf("]\n");

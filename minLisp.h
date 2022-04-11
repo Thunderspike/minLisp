@@ -2,41 +2,34 @@
 #define STR_SIZE 255
 #define HASHMAPCAPACITY 30
 
-// #define ID 1
-// #define NUM 2
+#define _INT 1
+#define _BOOL 2
+#define _UNDETERMINED 3
+#define _PARAMLIST 4
 
-// #define RPARAM 0
-// #define LPARAM 1
-// #define PLUS 2
-// #define MINUS 3
-// #define MULT 4
-// #define DIV 5
-// #define LT 6
-// #define LTE 7
-// #define GTE 8
-// #define NEQ 9
-// #define GT 10
-// #define GTE 11
-// #define EQ 12
-// #define LBRACK 13
-// #define RBRACK 14
-// #define AMPER 15
-// #define PIPE 16
-// #define EXCL 17  
 
-// #define _array 101
-// #define _seq 102
-// #define _define 103
-// #define _if 104
-// #define _while 105
-// #define _write 106
-// #define _writeln 107
-// #define _read 108
-// #define _and 109
-// #define _or 110
-// #define _not 111
-// #define _set 112
-// #define _let 113
-// #define _true 114
-// _false = 115
+// Symbol table utilities
+typedef struct Scope {
+    int count;
+    int capacity;
+    struct hsearch_data *hashmap_p;
+    char** ids_p;
+    struct Scope* enclosingScope_p;
+    int isTopScope;
+} Scope;
 
+typedef struct Symbol {
+    char* lexeme;
+    int type;
+    int val;
+    void* ptr;
+} Symbol;
+
+void createScope(); 
+Scope* _newScope();
+
+Symbol* createSymbol(char lexeme[255], int type, int val);
+
+void add(Scope*, Symbol*);
+Symbol* get(Scope* scope_p, char id[255]);
+void printScopeSymbols(Scope*);

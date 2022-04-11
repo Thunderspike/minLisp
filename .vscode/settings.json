@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "minlisp.h": "c"
+        "*.y": "c",
+        "minlisp.h": "c",
+        "cmath": "c"
     }
 }
