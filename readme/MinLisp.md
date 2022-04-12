@@ -22,7 +22,6 @@ operator)
 
 
 ```minLisp
- 
 ML		    :=	arrays program
 arrays		:=	arrays array
             |   ε
