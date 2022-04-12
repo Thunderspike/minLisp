@@ -11,8 +11,8 @@
     int yyerror(char *s);
     extern int yylineno;
 
+    int scopeIdCounter = 0;
     Scope* currScope_p = NULL;
-    Scope* topScope_p = NULL;
     GlobalFuncs* globalFuncs_p = NULL;
 %}
 
@@ -34,7 +34,7 @@
 %type<nameVal> ID 
 %type<intVal> NUM
 %type<symbolPointerType> expr 
-%type<paramsListType> param_list id_list
+%type<paramsListType> id_list param_list actual_list
 
 
 %%  
@@ -73,19 +73,18 @@ program		:   program function    {
 }
             ;
 function    :   '(' _define ID param_list {
-
     printf("\n function - '(' 'define' %s param_list {} expr ')'", $3);
      // add function to function scope
     FunctionData* funcEntry_p = getFuncO($3);
     // entry shouldn't exist, if it does it'll get overwritten
-    if(funcEntry_p && funcEntry_p->undefined != 1)
+    if(funcEntry_p && funcEntry_p->isUndefined != 1)
         printf("Function '%s' already declared", $3);
 
 
     int paramsCount = 0;
 
     if($4){
-         PLScope* plScope_p = (PLScope*) malloc(sizeof(PLScope));
+        PLScope* plScope_p = (PLScope*) malloc(sizeof(PLScope));
         plScope_p = $4;
 
         _printPL(plScope_p);
@@ -94,7 +93,6 @@ function    :   '(' _define ID param_list {
    
     // report function param number to function hashtable entry
     addFunc(createFuncData($3, paramsCount, _UNDETERMINED));
-
 } expr ')' {
    
 }
@@ -184,20 +182,35 @@ expr		:   NUM {
             |   '(' _while expr expr ')' {
     printf("\n expr - '(' 'while' expr expr ')"); 
 }
-            |   '(' ID {
-    FunctionData* res = getFuncO($2);
-    if(!res || res->undefined == 1) {
+            |   '(' ID actual_list ')' {
+    printf("\n expr - '(' %s actual_list ')'", $2);  
+    
+    // Ideally we check first post id to report func DNE then we check params so that underlying calls don't get printed first, but this'll do for now
+    FunctionData* funcO = (FunctionData*) malloc(sizeof(FunctionData));
+    funcO = getFuncO($2);
+    if(!funcO || funcO->isUndefined == 1) {
         printf("Undeclared function %s", $2);
-        if(!res) {
-            // add function to global function tracker (with undefined flag) to later determine type
+        if(!funcO) {
+            // add function to global function tracker ( with isUndefined ) to later determine type
             FunctionData* undefinedFunc_p = createFuncData($2, 0, _UNDETERMINED);
-            undefinedFunc_p->undefined = 1;
-            addFunc(undefinedFunc_p);
+            undefinedFunc_p->isUndefined = 1;
+            funcO = addFunc(undefinedFunc_p);
+        }
+    } else {
+        // check num of params for existing functions
+        if(funcO->paramsCount != $3->count) {
+            printf("Function %s expected %d parms", $2, $3->count);
         }
     }
-    // ...
-}               actual_list ')' {
-    printf("\n expr - '(' %s actual_list ')'", $2);    
+    Symbol* param = (Symbol*) malloc(sizeof(Symbol));
+    for(int i = 0; i < $3->count; i++) {
+        param = _getFromPL($3, $3->ids_p[i]);
+        if(param->type != _INT)
+            printf("Functions expect parameters of type int. Param at index %d is not an int", i);
+    }
+
+    // the value here will need to be the value retreived from running the function instead of 0
+    $$ = createSymbol("_ID_ACTUAL-LIST", funcO->type, 0);   
 }
             |   '(' _write expr ')' {
     printf("\n expr - '(' 'write' expr ')'");    
@@ -224,7 +237,12 @@ expr		:   NUM {
     printf("\n expr - '(' '+' expr expr ')'");    
 }
             |   '(' '-' expr expr ')' {
-    printf("\n expr - '(' '-' expr expr ')'");    
+    printf("\n expr - '(' '-' expr expr ')'");  
+    // if either expr isn't INT, print an error message, but continue computation
+    if($3->type != _INT || $4->type != _INT) 
+        printf("\n( - epxr expr ) expects arguments of type 'int'");
+
+    $$ = createSymbol("_MIN_EXP_EXP", _INT, ($3->val - $4->val));
 }
             |   '(' '*' expr expr ')' {
     printf("\n expr - '(' '*' expr expr ')'");    
@@ -286,10 +304,16 @@ expr		:   NUM {
 }
             ;
 actual_list	:   %empty {
-    printf("\n actual_list - __empty__");
+    printf("\n actual_list -> ε");     
+  
+    // left-most node, create a new parameterListScope obj
+    $$ = _newPLScope();   
 }
             |   actual_list expr {
-    printf("\n actual_list - actual_list expr");
+    printf("\n actual_list - actual_list expr"); 
+    PLScope* plScope_p = $1;
+    _addToPL(plScope_p, $2);
+    $$ = plScope_p;
 }
             ;
 assign_list	:   assign_list '(' ID expr ')' {
@@ -308,44 +332,38 @@ expr_list   :   expr_list expr {
             ;
 %%
 
-int yyerror(char* s) {
-	printf("\n\t--- %s - { line: %d }\n", s, yylloc.first_line );
-	return 0;
-}
+// ------
+// ------
 
 void initGlobalState() {
-    if(!currScope_p && !topScope_p && !globalFuncs_p) {
+    if(!currScope_p && !globalFuncs_p) {
         currScope_p = (Scope *) malloc(sizeof(Scope));
-        currScope_p = _newScope();
-        currScope_p->enclosingScope_p = NULL;
+        createScope("top");
         currScope_p->isTopScope = 1;
-
-        topScope_p = (Scope *) malloc(sizeof(Scope));
-        topScope_p = currScope_p;
 
         createGlobalFuncs();
     }
 }
 
-
 // ------
 
-Symbol* createSymbol(char lexeme[255], int type, int val) {
-    Symbol* nSymbol_p =  malloc(sizeof(Symbol));
-    nSymbol_p->lexeme = (char *) malloc(sizeof(STR_SIZE));
-    strcpy(nSymbol_p->lexeme, lexeme);
-    nSymbol_p->type = type;
-    nSymbol_p->val = val;
-
-    return nSymbol_p;
-}
-
-void createScope() {
+void createScope(char* name) {
     Scope* parent_p = (Scope*) malloc(sizeof(Scope));
     parent_p = currScope_p;
     currScope_p = _newScope();
     currScope_p->enclosingScope_p = parent_p;
     currScope_p->isTopScope = 0;
+    currScope_p->name = (char*) malloc(sizeof(STR_SIZE));
+    if(name)
+        currScope_p->name = name;
+    else {
+        // int length = snprintf( NULL, 0, "%d", scopeIdCounter );
+        // currScope_p->name  = (char*) malloc( length + 1 );
+        // snprintf( currScope_p->name , length + 1, "%d", scopeIdCounter );
+        snprintf( currScope_p->name, STR_SIZE, "%d", scopeIdCounter );
+    }
+
+    currScope_p->id = scopeIdCounter++;
 }
 
 Scope* _newScope() {
@@ -370,6 +388,16 @@ Scope* _newScope() {
     newScope_p->hashmap_p = (struct hsearch_data *) newHashmap_p;
 
     return newScope_p;
+}
+
+Symbol* createSymbol(char lexeme[255], int type, int val) {
+    Symbol* nSymbol_p =  (Symbol*) malloc(sizeof(Symbol));
+    nSymbol_p->lexeme = (char *) malloc(sizeof(STR_SIZE));
+    strcpy(nSymbol_p->lexeme, lexeme);
+    nSymbol_p->type = type;
+    nSymbol_p->val = val;
+
+    return nSymbol_p;
 }
 
 void add(Scope* scope_p, Symbol* symbol_p) {
@@ -433,11 +461,12 @@ Symbol* get(Scope* scope_p, char id[255]){
 
 
 void printScopeSymbols(Scope* scope_p) {
-    printf("\n\n--- printing ---");
+    printf("\n\n--- printing scope symbols ---");
 
     Scope* currScope_p = scope_p;
 
     while (1) {
+        printf("\nScope - name: %s, id: %d ", currScope_p->name, currScope_p->id);
         printf("\n[ ");
         ENTRY entry, *entry_p;
 
@@ -490,12 +519,13 @@ void createGlobalFuncs() {
 }
 
 FunctionData* createFuncData(char lexeme[255], int paramsCount, int type) {
-    FunctionData* funcDataO_p =  malloc(sizeof(FunctionData));
+    FunctionData* funcDataO_p =  (FunctionData*) malloc(sizeof(FunctionData));
     funcDataO_p->lexeme = (char *) malloc(sizeof(STR_SIZE));
     strcpy(funcDataO_p->lexeme, lexeme);
     funcDataO_p->paramsCount = paramsCount;
     funcDataO_p->type = type;
-    funcDataO_p->undefined = 0;
+    funcDataO_p->isRecursive = 0;
+    funcDataO_p->isUndefined = 0;
 
     return funcDataO_p;
 }
@@ -535,6 +565,16 @@ FunctionData* getFuncO(char funcName[255]){
         return NULL;
 
     return (FunctionData *) (entry_p->data);
+}
+
+void printFuncs() {
+    FunctionData* func = (FunctionData*) malloc(sizeof(FunctionData));
+    for(int i = 0; i < globalFuncs_p->count; i++) {
+        func = getFuncO(globalFuncs_p->ids_p[i]);
+        printf("\nfuncName: %s, paramCount: %d, funcReturnType: %d, isRecursive: %d, isUndefined: %d", 
+            func->lexeme, func->paramsCount, func->type, func->isRecursive, func->isUndefined
+        );
+    }
 }
 
 // ------
@@ -603,6 +643,12 @@ void _printPL(PLScope* pl_p) {
 }
 
 // ------
+// ------
+
+int yyerror(char* s) {
+	printf("\n\t--- %s - { line: %d }\n", s, yylloc.first_line );
+	return 0;
+}
 
 int main (void) {
     yylloc.first_line = yylloc.last_line = 1;
