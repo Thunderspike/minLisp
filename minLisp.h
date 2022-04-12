@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <search.h>
-#include <string.h>
-
 #define _GNU_SOURCE
 #define STR_SIZE 255
 #define HASHMAPCAPACITY 30
@@ -11,6 +6,13 @@
 #define _BOOL 2
 #define _UNDETERMINED 3
 #define _PARAMLIST 4
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <search.h>
+#include <string.h>
+
+
 
 // int scopeIdCounter = 0;
 // Scope* currScope_p = NULL;

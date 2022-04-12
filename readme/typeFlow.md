@@ -9,7 +9,7 @@
 }
 
 2. function - '(' "define" ID {
-    printf("\n function - '(' 'define' %s param_list {} expr ')'", $3);
+    printf("\n function - '(' 'define' ID (%s) {} param_list  expr ')'", $3);
 
     // check if main is already defined - if it has, exit program
     if(getFuncO("main")){
@@ -24,7 +24,7 @@
         funcEntry_p->type = _UNDETERMINED;
         funcEntry_p->isUndefined = 0;
     } else {
-        if(funcEntry_p && funcEntry_p->isUndefined != 1) {
+        if(funcEntry_p && funcEntry_p->isUndefined != 1)
             printf("Line %d --- Function '%s' already declared", yylloc.first_line, $3);
 
         addFunc(createFuncData($3, 0, _UNDETERMINED));
@@ -35,13 +35,15 @@
 } 
 21.
 param_list expr ')' {
+    printf("\n function - '(' 'define' ID (%s) --> param_list  expr ')'", $3);
+
     FunctionData* funcEntry_p = getFuncO(currScope_p->name);
     // set return type
-    funcEntry_p->type = $2->type;
+    funcEntry_p->type = $6->type;
 
     printScopeSymbols(currScope_p);
 
-    // pop fuunc scop
+    // pop func scope
     currScope_p = currScope_p->enclosingScope_p;
 }
 
@@ -86,6 +88,7 @@ param_list expr ')' {
 }
 5. *4 
 6. param_list -> ( id_list ) {
+    printf("\n param_list - '(' id_list ')'");
     int paramsCount = 0;
 
     PLScope* plScope_p = (PLScope*) malloc(sizeof(PLScope));
@@ -99,7 +102,7 @@ param_list expr ')' {
 
     // report function param number to function hashtable entry
     FunctionData* funcEntry_p = getFuncO(currScope_p->name);
-    funcEntry_p->paramsCount = paramsCount
+    funcEntry_p->paramsCount = paramsCount;
 
     $$ = plScope_p;
 }
@@ -153,7 +156,7 @@ param_list expr ')' {
     if($3->type != _INT || $4->type != _INT) 
         printf("\nLine %d --- ( - epxr expr ) expects arguments of type 'int'", yylloc.first_line);
 
-    $$ = createSymbol("_MIN_EXP_EXP", _INT, ($3->val - $4->val));
+    $$ = createSymbol("_MIN_EXP_EXP", _INT, (($3->val) - ($4->val)));
 }
 16. actual_list -> actual_list expr {
     printf("\n actual_list - actual_list expr"); 
@@ -172,7 +175,7 @@ param_list expr ')' {
     funcO = getFuncO($2);
 
     if(!funcO || funcO->isUndefined == 1) {
-        printf("Line %d --- Undeclared function %s", yylloc.first_line, $2);
+        printf("Line %d --- Undeclared function '%s'", yylloc.first_line, $2);
         if(!funcO) {
             // add function to global function tracker (with undefined flag) to later determine type
             FunctionData* undefinedFunc_p = createFuncData($2, 0, _UNDETERMINED);
@@ -182,7 +185,7 @@ param_list expr ')' {
     } else {
         // check num of params for existing functions
         if(funcO->paramsCount != $3->count) {
-            printf("Line %d --- Function %s expected %d parms", yylloc.first_line, $2, $3->count);
+            printf("Line %d --- Function '%s' expected %d parms", yylloc.first_line, $2, $3->count);
         }
     }
 
@@ -193,9 +196,9 @@ param_list expr ')' {
             printf("Line %d --- Functions expect parameters of type int. Param at index %d is not an int", yylloc.first_line, i);
     }
 
-    int type = funcO->type
+    int type = funcO->type;
     if(strcasecmp(funcO->lexeme, currScope_p->name) == 0) {
-        funcO->isRecursive = true;
+        funcO->isRecursive = 1;
         type = _INT;
     }
 
@@ -206,8 +209,12 @@ param_list expr ')' {
 18: -> *16
 19: -> *17
 20. expr -> ( if expr expr expr ) {
+    printf("\n expr - '(' 'if' expr expr expr ')");  
     // print error if types don't match, but ignore if either type is undetermined
-    if($4->type != $5->type || !($4->type == _UNDETERMINED  || $5 == _UNDETERMINED) )) {
+    if(
+        $4->type != $5->type || 
+        !($4->type == _UNDETERMINED  || $5->type == _UNDETERMINED) 
+    ) {
         printf("Line %d --- Types of 'if' statement need to match", yylloc.first_line);
     }
 
@@ -220,13 +227,15 @@ param_list expr ')' {
         type = $4->type;
 
     // if true first, else second
-    int val = expr.val == 1 ? $4->val : $5->val;
+    int val = $3->val == 1 ? $4->val : $5->val;
 
     $$ = createSymbol("_IF_EXPR_EXPR_EXPR", type, val);
 }
 
 21. ^
-22. {}
+22. program - function {
+    printf("\n program - function");
+}
 23. *2
 24. *3
 25. *6
@@ -238,15 +247,16 @@ param_list expr ')' {
     if($3->type != _INT || $4->type != _INT) 
         printf("\nLine %d --- ( + epxr expr ) expects arguments of type 'int'", yylloc.first_line);
 
-    $$ = createSymbol("_MIN_EXP_EXP", _INT, ($3->val + $4->val));
+    $$ = createSymbol("_PLUS_EXP_EXP", _INT, (($3->val) + ($4->val))); 
 }
 29. *2
 30. *22
 31. *2
 32. param_list -> ( ) {
+    printf("\n param_list - '(' ')'");
     // report function param number to function hashtable entry
     FunctionData* funcEntry_p = getFuncO(currScope_p->name);
-    funcEntry_p->paramsCount = 0
+    funcEntry_p->paramsCount = 0;
 
     $$ = NULL;
 }
@@ -258,4 +268,10 @@ param_list expr ')' {
 38. *17
 39. *21
 40. *39
-41. {}
+41. {
+    printf("\n ML - arrays program ");
+
+    printFuncs();
+
+    printf("\n\n");
+}

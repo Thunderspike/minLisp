@@ -1,10 +1,6 @@
 %{
     #include "minLisp.tab.h"
     #include "minLisp.h"
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <search.h>
-    #include <string.h>
 
     // Lex/YACC utilities
     int yylex();
@@ -41,13 +37,7 @@
 ML          :   arrays program  {
     printf("\n ML - arrays program ");
 
-    FunctionData* r = (FunctionData*) malloc(sizeof(FunctionData));
-
-    printf("\n\nPrinting funcs:");
-    for(int i = 0; i < globalFuncs_p->count; i++) {
-        r = getFuncO(globalFuncs_p->ids_p[i]);
-        printf("\nfuncName: %s, paramCount: %d, funcReturnType: %d", r->lexeme, r->paramsCount, r->type);
-    }
+    printFuncs();
 
     printf("\n\n");
 }
@@ -72,38 +62,69 @@ program		:   program function    {
     printf("\n program - function");
 }
             ;
-function    :   '(' _define ID param_list {
-    printf("\n function - '(' 'define' %s param_list {} expr ')'", $3);
-     // add function to function scope
+function    :   '(' _define ID {
+    printf("\n function - '(' 'define' ID (%s) {} param_list  expr ')'", $3);
+
+    // check if main is already defined - if it has, exit program
+    if(getFuncO("main")){
+        printf("\nLine %d --- Fatal: function 'main' need to be the last function declared in the program.\nExiting.\n", yylloc.first_line);
+        exit(0);
+    }
+
     FunctionData* funcEntry_p = getFuncO($3);
     // entry shouldn't exist, if it does it'll get overwritten
-    if(funcEntry_p && funcEntry_p->isUndefined != 1)
-        printf("Function '%s' already declared", $3);
+    if(funcEntry_p && funcEntry_p->isUndefined == 1) {
+        // if function is defined previousy as undefined, re-use the stored obj
+        funcEntry_p->type = _UNDETERMINED;
+        funcEntry_p->isUndefined = 0;
+    } else {
+        if(funcEntry_p && funcEntry_p->isUndefined != 1)
+            printf("\nLine %d --- Function '%s' already declared", yylloc.first_line, $3);
 
-
-    int paramsCount = 0;
-
-    if($4){
-        PLScope* plScope_p = (PLScope*) malloc(sizeof(PLScope));
-        plScope_p = $4;
-
-        _printPL(plScope_p);
-        paramsCount = plScope_p->count;
+        addFunc(createFuncData($3, 0, _UNDETERMINED));
     }
-   
-    // report function param number to function hashtable entry
-    addFunc(createFuncData($3, paramsCount, _UNDETERMINED));
-} expr ')' {
-   
+
+    // createScope
+    createScope($3);
+} param_list expr ')' {
+    printf("\n function - '(' 'define' ID (%s) --> param_list  expr ')'", $3);
+
+    FunctionData* funcEntry_p = getFuncO(currScope_p->name);
+    // set return type
+    funcEntry_p->type = $6->type;
+
+    printScopeSymbols(currScope_p);
+
+    // pop func scope
+    currScope_p = currScope_p->enclosingScope_p;
 }
             ;
 param_list	:   '(' ')' {
     printf("\n param_list - '(' ')'");
+    // report function param number to function hashtable entry
+    FunctionData* funcEntry_p = getFuncO(currScope_p->name);
+    funcEntry_p->paramsCount = 0;
+
     $$ = NULL;
 }
             |   '(' id_list ')' {
     printf("\n param_list - '(' id_list ')'");
-    $$ = $2;
+    int paramsCount = 0;
+
+    PLScope* plScope_p = (PLScope*) malloc(sizeof(PLScope));
+
+    if($2){
+        plScope_p = $2;
+
+        _printPL(plScope_p);
+        paramsCount = plScope_p->count;
+    }
+
+    // report function param number to function hashtable entry
+    FunctionData* funcEntry_p = getFuncO(currScope_p->name);
+    funcEntry_p->paramsCount = paramsCount;
+
+    $$ = plScope_p;
 }
             ;
 // internal type - PLScope*
@@ -115,7 +136,7 @@ id_list		:   id_list ID
 
     // lexeme shouldn't exist - if it does its value will get overwritten, for now
     if(sym_p)
-        printf("Parameter %s already defined", $2);
+        printf("\nLine %d --- Parameter %s already defined", yylloc.first_line, $2);
 
     sym_p = createSymbol($2, _INT, 0);
     add(currScope_p, sym_p); 
@@ -134,7 +155,7 @@ id_list		:   id_list ID
     
     // lexeme shouldn't exist - if it does its value will get overwritten, for now
     if(sym_p)
-        printf("Parameter %s already defined", $1);
+        printf("\nLine %d --- Parameter %s already defined", yylloc.first_line, $1);
 
     sym_p = createSymbol($1, _INT, 0);
     add(currScope_p, sym_p); 
@@ -145,24 +166,25 @@ id_list		:   id_list ID
 
     _addToPL(plScope_p, sym_p);
     
-    $$ = plScope_p;           
+    $$ = plScope_p;        
 }
             ;
 
 expr		:   NUM {
-    printf("\n expr - %d", $1);
+    printf("\n expr - NUM (%d)", $1);
     $$ = createSymbol("_NUMERIC_VAL_", _INT, $1);
 }
             |   ID {
-    printf("\n expr - %s", $1);    
+    printf("\n expr - ID (%s)", $1);    
 
     Symbol* sym_p = malloc(sizeof(Symbol));
     sym_p = get(currScope_p, $1);
 
     if(!sym_p){ // lexeme should exist
-        printf("Undeclared variable %s", $1);
+        printf("\nLine %d --- Undeclared variable %s", yylloc.first_line, $1);
         // create a symbol to return for type's sake
         sym_p = createSymbol($1, _UNDETERMINED, 0);
+        // micro optimization / pain saver - if we cidentify current scope as a functions, we can say the type is int no matter what
     } 
 
     $$ = sym_p;
@@ -177,21 +199,41 @@ expr		:   NUM {
     printf("\n expr - 'false'");
 }
             |   '(' _if expr expr expr ')' {
-    printf("\n expr - '(' 'if' expr expr expr ')");    
+    printf("\n expr - '(' 'if' expr expr expr ')");  
+    // print error if types don't match, but ignore if either type is undetermined
+    if(
+        $4->type != $5->type || 
+        !($4->type == _UNDETERMINED  || $5->type == _UNDETERMINED) 
+    ) {
+        printf("\nLine %d --- Types of 'if' statement need to match", yylloc.first_line);
+    }
+
+    int type = _UNDETERMINED;
+    if($4->type == _UNDETERMINED && $5->type != _UNDETERMINED)
+        type = $5->type;
+    else if($5->type == _UNDETERMINED && $4->type != _UNDETERMINED)
+        type = $4->type;
+    else if($4->type == $5->type)
+        type = $4->type;
+
+    // if true first, else second
+    int val = $3->val == 1 ? $4->val : $5->val;
+
+    $$ = createSymbol("_IF_EXPR_EXPR_EXPR", type, val);  
 }
             |   '(' _while expr expr ')' {
     printf("\n expr - '(' 'while' expr expr ')"); 
 }
             |   '(' ID actual_list ')' {
-    printf("\n expr - '(' %s actual_list ')'", $2);  
-    
-    // Ideally we check first post id to report func DNE then we check params so that underlying calls don't get printed first, but this'll do for now
+    printf("\n expr - '(' ID (%s) actual_list ')'", $2);  
+
     FunctionData* funcO = (FunctionData*) malloc(sizeof(FunctionData));
     funcO = getFuncO($2);
+
     if(!funcO || funcO->isUndefined == 1) {
-        printf("Undeclared function %s", $2);
+        printf("\nLine %d --- Undeclared function '%s'", yylloc.first_line, $2);
         if(!funcO) {
-            // add function to global function tracker ( with isUndefined ) to later determine type
+            // add function to global function tracker (with undefined flag) to later determine type
             FunctionData* undefinedFunc_p = createFuncData($2, 0, _UNDETERMINED);
             undefinedFunc_p->isUndefined = 1;
             funcO = addFunc(undefinedFunc_p);
@@ -199,18 +241,25 @@ expr		:   NUM {
     } else {
         // check num of params for existing functions
         if(funcO->paramsCount != $3->count) {
-            printf("Function %s expected %d parms", $2, $3->count);
+            printf("\nLine %d --- Function '%s' expected %d parms", yylloc.first_line, $2, $3->count);
         }
     }
+
     Symbol* param = (Symbol*) malloc(sizeof(Symbol));
     for(int i = 0; i < $3->count; i++) {
         param = _getFromPL($3, $3->ids_p[i]);
         if(param->type != _INT)
-            printf("Functions expect parameters of type int. Param at index %d is not an int", i);
+            printf("\nLine %d --- Functions expect parameters of type int. Param at index %d is not an int", yylloc.first_line, i);
+    }
+
+    int type = funcO->type;
+    if(strcasecmp(funcO->lexeme, currScope_p->name) == 0) {
+        funcO->isRecursive = 1;
+        type = _INT;
     }
 
     // the value here will need to be the value retreived from running the function instead of 0
-    $$ = createSymbol("_ID_ACTUAL-LIST", funcO->type, 0);   
+    $$ = createSymbol("_ID_ACTUAL-LIST", type, 0);   
 }
             |   '(' _write expr ')' {
     printf("\n expr - '(' 'write' expr ')'");    
@@ -234,15 +283,20 @@ expr		:   NUM {
     printf("\n expr - '(' 'set' %s '[' expr ']' expr ')'", $3);    
 }
             |   '(' '+' expr expr ')' {
-    printf("\n expr - '(' '+' expr expr ')'");    
+     printf("\n expr - '(' '+' expr expr ')'");  
+    // if either expr isn't INT, print an error message, but continue computation
+    if($3->type != _INT || $4->type != _INT) 
+        printf("\nLine %d --- ( + epxr expr ) expects arguments of type 'int'", yylloc.first_line);
+
+    $$ = createSymbol("_PLUS_EXP_EXP", _INT, (($3->val) + ($4->val)));  
 }
             |   '(' '-' expr expr ')' {
     printf("\n expr - '(' '-' expr expr ')'");  
     // if either expr isn't INT, print an error message, but continue computation
     if($3->type != _INT || $4->type != _INT) 
-        printf("\n( - epxr expr ) expects arguments of type 'int'");
+        printf("\nLine %d --- ( - epxr expr ) expects arguments of type 'int'", yylloc.first_line);
 
-    $$ = createSymbol("_MIN_EXP_EXP", _INT, ($3->val - $4->val));
+    $$ = createSymbol("_MIN_EXP_EXP", _INT, (($3->val) - ($4->val)));
 }
             |   '(' '*' expr expr ')' {
     printf("\n expr - '(' '*' expr expr ')'");    
@@ -304,7 +358,7 @@ expr		:   NUM {
 }
             ;
 actual_list	:   %empty {
-    printf("\n actual_list -> ε");     
+    printf("\n actual_list -> ε");
   
     // left-most node, create a new parameterListScope obj
     $$ = _newPLScope();   
@@ -313,7 +367,11 @@ actual_list	:   %empty {
     printf("\n actual_list - actual_list expr"); 
     PLScope* plScope_p = $1;
     _addToPL(plScope_p, $2);
-    $$ = plScope_p;
+
+    // debugger;
+    _printPL(plScope_p);
+
+    $$ = plScope_p;  
 }
             ;
 assign_list	:   assign_list '(' ID expr ')' {
