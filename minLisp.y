@@ -8,6 +8,7 @@
     extern int yylineno;
 
     int scopeIdCounter = 0;
+    int nodeCounter = 0;
     Scope* currScope_p = NULL;
     GlobalFuncs* globalFuncs_p = NULL;
 %}
@@ -35,35 +36,44 @@
 
 %%  
 ML          :   arrays program  {
-    printf("\n ML - arrays program ");
+    if(DEBUG) {
+        printf("\n(%d) ML - arrays program", nodeCounter++);
+        printFuncs();
+    }
 
-    printFuncs();
 
-    printf("\n\n");
+    printf("\n");
 }
             ;
 arrays      :   %empty {
-    printf("\n arrays - __empty__ ");
+    if(DEBUG)
+        printf("\n(%d) arrays - __empty__ ", nodeCounter++);
+
     // always fist node reached - perfect place to initialize global state. 
     initGlobalState();
 }           
             |  arrays array {
-    printf("\n arrays - arrays array ");
+    if(DEBUG)
+        printf("\n(%d) arrays - arrays array ", nodeCounter++);
 }
             ;
 array       :   '(' _array ID NUM ')'    {
-    printf("\n array - '(' 'array' %s %d ')'", $3, $4);
+    if(DEBUG) 
+        printf("\n(%d) array - '(' 'array' %s %d ')'", nodeCounter++, $3, $4);
 }
             ;
 program		:   program function    {
-    printf("\n program - program function");
+    if(DEBUG)
+        printf("\n(%d) program - program function", nodeCounter++);
 }
             |   function    {
-    printf("\n program - function");
+    if(DEBUG)            
+    printf("\n(%d) program - function", nodeCounter++);
 }
             ;
 function    :   '(' _define ID {
-    printf("\n function - '(' 'define' ID (%s) {} param_list  expr ')'", $3);
+    if(DEBUG)
+        printf("\n(%d) function - '(' 'define' ID (%s) {} param_list  expr ')'", nodeCounter++, $3);
 
     // check if main is already defined - if it has, exit program
     if(getFuncO("main")){
@@ -87,7 +97,8 @@ function    :   '(' _define ID {
     // createScope
     createScope($3);
 } param_list expr ')' {
-    printf("\n function - '(' 'define' ID (%s) --> param_list  expr ')'", $3);
+    if(DEBUG)
+        printf("\n(%d) function - '(' 'define' ID (%s) --> param_list  expr ')'", nodeCounter++, $3);
 
     FunctionData* funcEntry_p = getFuncO(currScope_p->name);
     // set return type
@@ -100,7 +111,8 @@ function    :   '(' _define ID {
 }
             ;
 param_list	:   '(' ')' {
-    printf("\n param_list - '(' ')'");
+    if(DEBUG)
+        printf("\n(%d) param_list - '(' ')'", nodeCounter++);
     // report function param number to function hashtable entry
     FunctionData* funcEntry_p = getFuncO(currScope_p->name);
     funcEntry_p->paramsCount = 0;
@@ -108,7 +120,9 @@ param_list	:   '(' ')' {
     $$ = NULL;
 }
             |   '(' id_list ')' {
-    printf("\n param_list - '(' id_list ')'");
+    if(DEBUG)
+        printf("\n(%d) param_list - '(' id_list ')'", nodeCounter++);
+
     int paramsCount = 0;
 
     PLScope* plScope_p = (PLScope*) malloc(sizeof(PLScope));
@@ -116,7 +130,8 @@ param_list	:   '(' ')' {
     if($2){
         plScope_p = $2;
 
-        _printPL(plScope_p);
+        if(DEBUG)
+            _printPL(plScope_p);
         paramsCount = plScope_p->count;
     }
 
@@ -124,39 +139,42 @@ param_list	:   '(' ')' {
     FunctionData* funcEntry_p = getFuncO(currScope_p->name);
     funcEntry_p->paramsCount = paramsCount;
 
+    if(DEBUG)
+        printFuncs(funcEntry_p);
+
+
     $$ = plScope_p;
 }
             ;
 // internal type - PLScope*
 id_list		:   id_list ID 
 {
-    printf("\n id_list - id_list %s", $2);
+    if(DEBUG)
+        printf("\n(%d) id_list - id_list %s", nodeCounter++, $2);
     Symbol* sym_p = malloc(sizeof(Symbol));
     sym_p = get(currScope_p, $2);
 
+    // use other copy to pass up to param_list for keeps
+    PLScope* plScope_p = $1;
+
     // lexeme shouldn't exist - if it does its value will get overwritten, for now
     if(sym_p)
-        printf("\nLine %d --- Parameter %s already defined", yylloc.first_line, $2);
+        printf("\nLine %d --- Parameter '%s' already defined", yylloc.first_line, $2);
+    else {
+        // only add symbol if it's new to scope
 
-    sym_p = createSymbol($2, _INT, 0);
-    add(currScope_p, sym_p); 
-    
-    // use other copy to pass up to param_list for analysis.
-    PLScope* plScope_p = $1;
-    _addToPL(plScope_p, sym_p);
-    
+        sym_p = createSymbol($2, _INT, 0);
+        add(currScope_p, sym_p); 
+         _addToPL(plScope_p, sym_p);
+    }
+     
     $$ = plScope_p;
 }
             |   ID 
 {
-    printf("\n id_list - ID (%s)", $1);     
+    if(DEBUG)
+        printf("\n(%d) id_list - ID (%s)", nodeCounter++, $1);     
     Symbol* sym_p = (Symbol*) malloc(sizeof(Symbol));
-    sym_p = get(currScope_p, $1);
-    
-    // lexeme shouldn't exist - if it does its value will get overwritten, for now
-    if(sym_p)
-        printf("\nLine %d --- Parameter %s already defined", yylloc.first_line, $1);
-
     sym_p = createSymbol($1, _INT, 0);
     add(currScope_p, sym_p); 
 
@@ -171,17 +189,19 @@ id_list		:   id_list ID
             ;
 
 expr		:   NUM {
-    printf("\n expr - NUM (%d)", $1);
+    if(DEBUG)
+        printf("\n(%d) expr - NUM (%d)", nodeCounter++, $1);
     $$ = createSymbol("_NUMERIC_VAL_", _INT, $1);
 }
             |   ID {
-    printf("\n expr - ID (%s)", $1);    
+    if(DEBUG)
+        printf("\n(%d) expr - ID (%s)", nodeCounter++, $1);    
 
     Symbol* sym_p = malloc(sizeof(Symbol));
     sym_p = get(currScope_p, $1);
 
     if(!sym_p){ // lexeme should exist
-        printf("\nLine %d --- Undeclared variable %s", yylloc.first_line, $1);
+        printf("\nLine %d --- Undeclared variable '%s'", yylloc.first_line, $1);
         // create a symbol to return for type's sake
         sym_p = createSymbol($1, _UNDETERMINED, 0);
         // micro optimization / pain saver - if we cidentify current scope as a functions, we can say the type is int no matter what
@@ -190,22 +210,27 @@ expr		:   NUM {
     $$ = sym_p;
 }
             |   ID  '[' expr ']' {
-    printf("\n expr - %s '[' expr ']'", $1);    
+    if(DEBUG)
+        printf("\n(%d) expr - %s '[' expr ']'", nodeCounter++, $1);    
 }
             |   _true {
-    printf("\n expr - 'true'");    
+    if(DEBUG)
+        printf("\n(%d) expr - 'true'", nodeCounter++);    
 }
             |   _false {
-    printf("\n expr - 'false'");
+    if(DEBUG)
+        printf("\n(%d) expr - 'false'", nodeCounter++);
 }
             |   '(' _if expr expr expr ')' {
-    printf("\n expr - '(' 'if' expr expr expr ')");  
+    if(DEBUG)
+        printf("\n(%d) expr - '(' 'if' expr expr expr ')", nodeCounter++); 
+
     // print error if types don't match, but ignore if either type is undetermined
     if(
-        $4->type != $5->type || 
-        !($4->type == _UNDETERMINED  || $5->type == _UNDETERMINED) 
+        $4->type != $5->type &&
+        !($4->type == _UNDETERMINED || $5->type == _UNDETERMINED) 
     ) {
-        printf("\nLine %d --- Types of 'if' statement need to match", yylloc.first_line);
+        printf("\nLine %d --- Types of expr 2 and expr 3 don't match for the 'if' statement", yylloc.first_line);
     }
 
     int type = _UNDETERMINED;
@@ -222,10 +247,12 @@ expr		:   NUM {
     $$ = createSymbol("_IF_EXPR_EXPR_EXPR", type, val);  
 }
             |   '(' _while expr expr ')' {
-    printf("\n expr - '(' 'while' expr expr ')"); 
+    if(DEBUG)
+        printf("\n(%d) expr - '(' 'while' expr expr ')", nodeCounter++); 
 }
             |   '(' ID actual_list ')' {
-    printf("\n expr - '(' ID (%s) actual_list ')'", $2);  
+    if(DEBUG)
+        printf("\n(%d) expr - '(' ID (%s) actual_list ')'", nodeCounter++, $2);  
 
     FunctionData* funcO = (FunctionData*) malloc(sizeof(FunctionData));
     funcO = getFuncO($2);
@@ -239,17 +266,18 @@ expr		:   NUM {
             funcO = addFunc(undefinedFunc_p);
         }
     } else {
+
         // check num of params for existing functions
         if(funcO->paramsCount != $3->count) {
-            printf("\nLine %d --- Function '%s' expected %d parms", yylloc.first_line, $2, $3->count);
+            printf("\nLine %d --- Function '%s' expected [%d] parms", yylloc.first_line, $2, funcO->paramsCount);
         }
     }
 
     Symbol* param = (Symbol*) malloc(sizeof(Symbol));
     for(int i = 0; i < $3->count; i++) {
         param = _getFromPL($3, $3->ids_p[i]);
-        if(param->type != _INT)
-            printf("\nLine %d --- Functions expect parameters of type int. Param at index %d is not an int", yylloc.first_line, i);
+        if(param->type != _INT && param->type != _UNDETERMINED)
+            printf("\nLine %d --- Functions expect parameters of type integer. Param at index [%d] is not an integer", yylloc.first_line, i);
     }
 
     int type = funcO->type;
@@ -262,110 +290,146 @@ expr		:   NUM {
     $$ = createSymbol("_ID_ACTUAL-LIST", type, 0);   
 }
             |   '(' _write expr ')' {
-    printf("\n expr - '(' 'write' expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'write' expr ')'", nodeCounter++);    
 }
             |   '(' _writeln expr ')' {
-    printf("\n expr - '(' 'writeln' expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'writeln' expr ')'", nodeCounter++);    
 }
             |   '(' _read ')' {
-    printf("\n expr - '(' 'read' ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'read' ')'", nodeCounter++);    
 }
             |   '(' _let '(' assign_list ')' expr ')' {
-    printf("\n expr - '(' 'let' '(' assign_list ')' expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'let' '(' assign_list ')' expr ')'", nodeCounter++);    
 }
             |   '(' _set ID expr ')' {
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'set' %s expr ')'", nodeCounter++, $3);    
     Symbol* getter = malloc(sizeof(Symbol));
     getter = $4;
-    printf("\n expr - '(' 'set' %s expr ')'", $3);    
     printf("\n expr's value: %d", getter->val);
 }
             |   '(' _set ID '[' expr ']' expr ')' {
-    printf("\n expr - '(' 'set' %s '[' expr ']' expr ')'", $3);    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'set' %s '[' expr ']' expr ')'", nodeCounter++, $3);    
 }
             |   '(' '+' expr expr ')' {
-     printf("\n expr - '(' '+' expr expr ')'");  
-    // if either expr isn't INT, print an error message, but continue computation
-    if($3->type != _INT || $4->type != _INT) 
-        printf("\nLine %d --- ( + epxr expr ) expects arguments of type 'int'", yylloc.first_line);
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '+' expr expr ')'", nodeCounter++);  
+    // if either expr isn't INT (except undetermined), print an error message, but continue computation
+    
+    if(
+        !($3->type == _UNDETERMINED || $4->type == _UNDETERMINED) && 
+        ($3->type != _INT || $4->type != _INT) 
+    ) 
+        printf("\nLine %d --- ( + epxr expr ) expects arguments of type integer", yylloc.first_line);
 
     $$ = createSymbol("_PLUS_EXP_EXP", _INT, (($3->val) + ($4->val)));  
 }
             |   '(' '-' expr expr ')' {
-    printf("\n expr - '(' '-' expr expr ')'");  
-    // if either expr isn't INT, print an error message, but continue computation
-    if($3->type != _INT || $4->type != _INT) 
-        printf("\nLine %d --- ( - epxr expr ) expects arguments of type 'int'", yylloc.first_line);
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '-' expr expr ')'", nodeCounter++);  
+    // if either expr isn't INT (except undetermined), print an error message, but continue computation
+    if(
+        !($3->type == _UNDETERMINED || $4->type == _UNDETERMINED) && 
+        ($3->type != _INT || $4->type != _INT) 
+    ) 
+        printf("\nLine %d --- ( - epxr expr ) expects arguments of type integer", yylloc.first_line);
 
     $$ = createSymbol("_MIN_EXP_EXP", _INT, (($3->val) - ($4->val)));
 }
             |   '(' '*' expr expr ')' {
-    printf("\n expr - '(' '*' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '*' expr expr ')'", nodeCounter++);    
 }
             |   '(' '/' expr expr ')' {
-    printf("\n expr - '(' '/' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '/' expr expr ')'", nodeCounter++);    
 }
             |   '(' '<' expr expr ')' {
-    printf("\n expr - '(' '<' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '<' expr expr ')'", nodeCounter++);    
 }           |   '(' '>' expr expr ')' {
-    printf("\n expr - '(' '>' expr expr ')'");    
+    if(DEBUG)    
+        printf("\n(%d) expr - '(' '>' expr expr ')'", nodeCounter++);    
 }
             |   '(' LTE expr expr ')' {
-    printf("\n expr - '(' '<=' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '<=' expr expr ')'", nodeCounter++);    
 }
             |   '(' GTE expr expr ')' {
-    printf("\n expr - '(' '>=' expr expr ')'");    
+    printf("\n(%d) expr - '(' '>=' expr expr ')'", nodeCounter++);    
 }
             |   '(' '=' expr expr ')' {
-    printf("\n expr - '(' '=' expr expr ')'");      
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '=' expr expr ')'", nodeCounter++);      
 
     Symbol* exp_1 = $3;
     Symbol* exp_2 = $4;
 
     Symbol* sym_p = malloc(sizeof(Symbol));
     // no matter whether UNDEFINED | INT | BOOl combination, return comparison of two exprs
-    sym_p = createSymbol("_EQ_EXP_EXP", _BOOL, exp_1->val == exp_2->val);
+    if(DEBUG) 
+        sym_p = createSymbol("_EQ_EXP_EXP", _BOOL, exp_1->val == exp_2->val);
 
     printf("\n\tlexeme: %s, type: %d, val: %d", sym_p->lexeme, sym_p->type, sym_p->val);
 
     $$ = sym_p;
 }
             |   '(' NEQ expr ')' {
-    printf("\n expr - '(' '<>' expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '<>' expr ')'", nodeCounter++);    
 }
             |   '(' '-' expr ')' {
-    printf("\n expr - '(' '-' expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '-' expr ')'", nodeCounter++);    
 }
             |   '(' _and expr expr ')' {
-    printf("\n expr - '(' 'and' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'and' expr expr ')'", nodeCounter++);    
 }
             |   '(' '&' expr expr ')' {
-    printf("\n expr - '(' '&' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '&' expr expr ')'", nodeCounter++);    
 }
             |   '(' _or expr expr ')' {
-    printf("\n expr - '(' 'or' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'or' expr expr ')'", nodeCounter++);    
 }
             |   '(' '|' expr expr ')' {
-    printf("\n expr - '(' '|' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '|' expr expr ')'", nodeCounter++);    
 }
             |   '(' _not expr expr ')' {
-    printf("\n expr - '(' 'not' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'not' expr expr ')'", nodeCounter++);    
 }
             |   '(' '!' expr expr ')' {
-    printf("\n expr - '(' '!' expr expr ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' '!' expr expr ')'", nodeCounter++);    
 }
             |   '(' _seq expr_list ')' {
-    printf("\n expr - '(' 'seq' expr_list ')'");    
+    if(DEBUG)                
+        printf("\n(%d) expr - '(' 'seq' expr_list ')'", nodeCounter++);    
 }
             ;
 actual_list	:   %empty {
-    printf("\n actual_list -> ε");
+    if(DEBUG)    
+        printf("\n(%d) actual_list -> ε", nodeCounter++);
   
     // left-most node, create a new parameterListScope obj
     $$ = _newPLScope();   
 }
             |   actual_list expr {
-    printf("\n actual_list - actual_list expr"); 
+    if(DEBUG)                
+        printf("\n(%d) actual_list - actual_list expr", nodeCounter++); 
     PLScope* plScope_p = $1;
+
+    printf("\n\tSymbol: lexeme: %s, type: %d, val: %d", $2->lexeme, $2->type, $2->val);
+
     _addToPL(plScope_p, $2);
 
     // debugger;
@@ -375,17 +439,21 @@ actual_list	:   %empty {
 }
             ;
 assign_list	:   assign_list '(' ID expr ')' {
-    printf("\n assign_list - assign_list '(' %s expr ')'", $3);
+    if(DEBUG)    
+        printf("\n(%d) assign_list - assign_list '(' %s expr ')'", nodeCounter++, $3);
 }
             |   '(' ID expr ')' {
-    printf("\n assign_list -  '(' %s expr ')'", $2);
+    if(DEBUG)                
+        printf("\n(%d) assign_list -  '(' %s expr ')'", nodeCounter++, $2);
 }
             ;
 expr_list   :   expr_list expr {
-    printf("\n expr_list -  expr_list expr ");
+    if(DEBUG)    
+        printf("\n(%d) expr_list -  expr_list expr ", nodeCounter++);
 }
             |   expr {
-    printf("\n expr_list - expr ");
+    if(DEBUG)                
+        printf("\n(%d) expr_list - expr ", nodeCounter++);
 }
             ;
 %%
@@ -626,6 +694,7 @@ FunctionData* getFuncO(char funcName[255]){
 }
 
 void printFuncs() {
+    printf("\n\t --- printing funcs available to global scope --- ");
     FunctionData* func = (FunctionData*) malloc(sizeof(FunctionData));
     for(int i = 0; i < globalFuncs_p->count; i++) {
         func = getFuncO(globalFuncs_p->ids_p[i]);
@@ -633,6 +702,7 @@ void printFuncs() {
             func->lexeme, func->paramsCount, func->type, func->isRecursive, func->isUndefined
         );
     }
+    printf("\n\t --- finished funcs ---\n");
 }
 
 // ------
@@ -691,6 +761,7 @@ Symbol* _getFromPL(PLScope* pl_p, char lexeme[255]){
 }
 
 void _printPL(PLScope* pl_p) {
+    printf("\n\t --- printing current parameter list --- ");
     Symbol* sym_p = (Symbol*) malloc(sizeof(Symbol));
 
     for(int i = 0; i < pl_p->count; i++ ) {
@@ -698,6 +769,7 @@ void _printPL(PLScope* pl_p) {
 
         printf("\nSymbol - lexeme: %s, type: %d, val: %d", sym_p->lexeme, sym_p->type, sym_p->val);
     }
+    printf("\n\t --- finished parameter list ---\n");
 }
 
 // ------

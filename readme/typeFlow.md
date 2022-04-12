@@ -51,12 +51,6 @@ param_list expr ')' {
 3. id_list - id {
     printf("\n id_list - ID (%s)", $1);     
     Symbol* sym_p = (Symbol*) malloc(sizeof(Symbol));
-    sym_p = get(currScope_p, $1);
-    
-    // lexeme shouldn't exist - if it does its value will get overwritten, for now
-    if(sym_p)
-        printf("Line %d --- Parameter %s already defined", yylloc.first_line, $1);
-
     sym_p = createSymbol($1, _INT, 0);
     add(currScope_p, sym_p); 
 
@@ -66,7 +60,7 @@ param_list expr ')' {
 
     _addToPL(plScope_p, sym_p);
     
-    $$ = plScope_p;
+    $$ = plScope_p;  
 }
 4. id_list - id_list id {
     printf("\n id_list - id_list %s", $2);

@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#define DEBUG 1
 #define STR_SIZE 255
 #define HASHMAPCAPACITY 30
 
