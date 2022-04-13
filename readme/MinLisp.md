@@ -44,7 +44,7 @@ expr		:=	num
             |	( write expr )  
             |	( writeln expr )  
             |	( read )
-            |	( let (assign_list ) expr )
+            |	( let ( assign_list ) expr )
             |	( set id expr ) 
             |	( set id [ expr ] expr ) 
             |	( + expr expr )

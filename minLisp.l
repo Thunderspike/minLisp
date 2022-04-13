@@ -1,13 +1,12 @@
 %{
     #include "minLisp.tab.h"
-    #include "minLisp.h"
 %}
 
 %option yylineno
 
 id      [a-zA-Z][a-zA-Z0-9_]*
 num     [0-9]+
-comment #.*\n
+comment #.*
 
 %%
 [(]         { return('('); }
@@ -53,10 +52,7 @@ comment #.*\n
 {num}       { yylval.intVal = atoi(yytext); return(NUM); }
 [\t]	    { yylloc.first_column+=5; }
 [ ]         { yylloc.first_column++; }
-{comment}   { 
-                yylloc.first_line++; 
-                yylloc.first_column = 0;
-            }
+{comment}   {}
 [\n]        { 
                 yylloc.first_line++; 
                 yylloc.first_column = 0;
