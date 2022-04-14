@@ -8,22 +8,22 @@ program		:=	program function    [x]
 function	:=	( define id param_list expr ) [x] -- check for arr
 param_list	:=	( )                 [x]
 			|	( id_list )         [x]
-id_list		:=	id_list id          [x]
-		    |	id	                [x] 
-expr		:=	num                 [x]
+id_list		:=	id_list id          [x] _int
+		    |	id	                [x] _int
+expr		:=	num                 [x] 
             |	id                  [x] -- check for array/func (done)
-            |	id [ expr ]         [x] -- check for func/local
+            |	id [ expr ]         [x] -- check for func/local (done)
             |	true                [x]
             |	false               [x]
             |	( if expr expr expr )   [x]
             |	( while expr expr ) [x]
-            |	( id actual_list )  [-] -- check for arr/local
+            |	( id actual_list )  [-] -- check for arr/local (done)
             |	( write expr )      [x]
             |	( writeln expr )    [x]
             |	( read )            [x]
             |	( let ( assign_list ) expr ) [x]
-            |	( set id expr )     [x] -- check for array/func
-            |	( set id [ expr ] expr ) [x] -- check for func/local
+            |	( set id expr )     [x] -- check for array/func (done)
+            |	( set id [ expr ] expr ) [x] -- check for func/local (done)
             |	( + expr expr )     [x]
             |	( - expr expr)      [x]
             |	( * expr expr )     [x]

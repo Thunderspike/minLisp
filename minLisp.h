@@ -1,7 +1,8 @@
 #define _GNU_SOURCE
-#define DEBUG 1
+#define DEBUG 0
 #define STR_SIZE 255
 #define HASHMAPCAPACITY 30
+#define MAIN "main"
 
 #define _UNSASSIGNED 0 // unused
 #define _INT 1

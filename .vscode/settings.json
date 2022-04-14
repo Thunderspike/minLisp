@@ -3,6 +3,7 @@
         "*.y": "c",
         "minlisp.h": "c",
         "cmath": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "stdio.h": "c"
     }
 }

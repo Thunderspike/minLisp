@@ -6,7 +6,7 @@
 
 id      [a-zA-Z][a-zA-Z0-9_]*
 num     [0-9]+
-comment #.*
+comment \#(.*)
 
 %%
 [(]         { return('('); }
@@ -52,9 +52,12 @@ comment #.*
 {num}       { yylval.intVal = atoi(yytext); return(NUM); }
 [\t]	    { yylloc.first_column+=5; }
 [ ]         { yylloc.first_column++; }
-{comment}   {}
+{comment}   {
+                // yylloc.first_line++; 
+                // yylloc.first_column = 0;
+            }
 [\n]        { 
                 yylloc.first_line++; 
-                yylloc.first_column = 0;
+                // yylloc.first_column = 0;
             }
 %%
